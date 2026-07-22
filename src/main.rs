@@ -3,12 +3,13 @@ use std::io;
 use std::path::Path;
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 
-use ratatui::style::Stylize;
+use ratatui::widgets::Widget;
+use ratatui_textarea::TextArea;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -22,13 +23,16 @@ struct App {
     notes: Vec<String>,
     selected: usize, // índice de la nota seleccionada
     mode: Mode,      // nuevo campo
+    text_area: TextArea<'static>,
 }
 
 enum Mode {
     Normal,             // navegando la lista (como ahora)
     NewNote(String),    // escribiendo el título de una nota nueva
     DeleteNote(String), // borrando una nota
+    EditNote(String )
 }
+
 
 impl App {
     fn new(vault: &Path) -> io::Result<Self> {
@@ -37,6 +41,7 @@ impl App {
             notes,
             selected: 0,
             mode: Mode::Normal,
+            text_area: TextArea::default()
         })
     }
 
@@ -81,7 +86,6 @@ fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new(Path::new("vault"))?;
-
     // --- Loop principal ---
     loop {
         terminal.draw(|f| {
@@ -126,10 +130,17 @@ fn main() -> io::Result<()> {
                 String::new()
             };
 
-            let preview = Paragraph::new(content).block(Block::default());
 
-            f.render_widget(preview, chunks[1]);
 
+
+            if let Mode::Normal = &app.mode {
+                let preview = Paragraph::new(content).block(Block::default());
+                f.render_widget(preview, chunks[1]);
+            }
+
+            if let Mode::EditNote(input) = &app.mode {
+                f.render_widget(&app.text_area, chunks[1]);
+            }
             // --- Overlay: input de nueva nota ---
             if let Mode::NewNote(input) = &app.mode {
                 let popup_area = Layout::default()
@@ -204,6 +215,16 @@ fn main() -> io::Result<()> {
                         KeyCode::Char('n') => {
                             app.mode = Mode::NewNote(String::new()); // entra a modo creación
                         }
+                        KeyCode::Char('e') => {
+                            
+                            if let Some(note) = app.notes.get(app.selected) {
+                                let note_text = read_note_content(Path::new("vault"), &note.clone());
+                                let  lines: Vec<String> = note_text.split('\n').map(String::from).collect();
+                                app.text_area = TextArea::new(lines);
+                                app.mode = Mode::EditNote(note.clone()); 
+                            }
+                        }
+
                         KeyCode::Char('d') => {
                             if let Some(note) = app.notes.get(app.selected) {
                                 app.mode = Mode::DeleteNote(note.clone());
@@ -248,6 +269,20 @@ fn main() -> io::Result<()> {
                         }
                         _ => {}
                     },
+                    Mode::EditNote(note) => match key.code {
+                        KeyCode::Esc => {
+                            app.mode = Mode::Normal; // cancelar
+                        },
+                        KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            let text: String = app.text_area.lines().join("\n");
+                            let path = Path::new("vault").join(note);
+                            save_note(&path, &text)?;
+                            app.mode = Mode::Normal; // cancelar
+                        },
+                        _ => {
+                            app.text_area.input(key);
+                        }
+                    }
                 }
             }
         }
@@ -280,5 +315,10 @@ fn slugify(s: &str) -> String {
 
 fn delete_note(file_path: &Path) -> Result<(), io::Error> {
     fs::remove_file(&file_path)?;
+    Ok(())
+}
+
+fn save_note(file_path: &Path, text: &str) -> io::Result<()>{
+    fs::write(&file_path, text)?;
     Ok(())
 }
