@@ -8,8 +8,9 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 
-use ratatui::widgets::Widget;
 use ratatui_textarea::TextArea;
+use ratatui_notifications::{Notification, Notifications, Level, Anchor, Animation, SizeConstraint};
+use std::time::Duration;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -24,6 +25,7 @@ struct App {
     selected: usize, // índice de la nota seleccionada
     mode: Mode,      // nuevo campo
     text_area: TextArea<'static>,
+    notifications: Notifications,
 }
 
 enum Mode {
@@ -41,7 +43,8 @@ impl App {
             notes,
             selected: 0,
             mode: Mode::Normal,
-            text_area: TextArea::default()
+            text_area: TextArea::default(),
+            notifications: Notifications::new()
         })
     }
 
@@ -84,10 +87,10 @@ fn main() -> io::Result<()> {
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
     let mut app = App::new(Path::new("vault"))?;
     // --- Loop principal ---
     loop {
+        app.notifications.tick(Duration::from_millis(200));
         terminal.draw(|f| {
             // Divide la pantalla en 2 columnas: 30% lista, 70% preview
             let chunks = Layout::default()
@@ -203,8 +206,11 @@ fn main() -> io::Result<()> {
                 f.render_widget(ratatui::widgets::Clear, popup_area); // limpia el fondo antes de dibujar encima
                 f.render_widget(text, popup_area);
             }
+
+            app.notifications.render(f, f.area());
         })?;
 
+        if event::poll(Duration::from_millis(50))? {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 match &mut app.mode {
@@ -221,6 +227,9 @@ fn main() -> io::Result<()> {
                                 let note_text = read_note_content(Path::new("vault"), &note.clone());
                                 let  lines: Vec<String> = note_text.split('\n').map(String::from).collect();
                                 app.text_area = TextArea::new(lines);
+                                let style = Style::default().fg(Color::DarkGray);
+                                app.text_area.set_line_number_style(style);
+
                                 app.mode = Mode::EditNote(note.clone()); 
                             }
                         }
@@ -277,14 +286,33 @@ fn main() -> io::Result<()> {
                             let text: String = app.text_area.lines().join("\n");
                             let path = Path::new("vault").join(note);
                             save_note(&path, &text)?;
+                            let notif = Notification::new("Operation completed!")
+                           .title("Success")
+                            .level(Level::Info)
+                            .anchor(Anchor::BottomRight)
+                            .animation(Animation::Fade)
+                            .max_size(
+    SizeConstraint::Absolute(30),
+    SizeConstraint::Absolute(1),
+)
+                            .build()
+                            .unwrap();
+
+                            app.notifications.add(notif).unwrap();
+
                             app.mode = Mode::Normal; // cancelar
                         },
+                        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            app.text_area.insert_newline();
+                            app.text_area.insert_str("[ ] ");
+                        }
                         _ => {
                             app.text_area.input(key);
                         }
                     }
                 }
             }
+        }
         }
     }
 
@@ -321,4 +349,5 @@ fn delete_note(file_path: &Path) -> Result<(), io::Error> {
 fn save_note(file_path: &Path, text: &str) -> io::Result<()>{
     fs::write(&file_path, text)?;
     Ok(())
+
 }
