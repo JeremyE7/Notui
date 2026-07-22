@@ -9,7 +9,7 @@ use crossterm::{
 };
 
 use ratatui_textarea::TextArea;
-use ratatui_notifications::{Notification, Notifications, Level, Anchor, Animation, SizeConstraint};
+use ratatui_notifications::{Notification, Notifications, Level, Anchor, Animation, SizeConstraint, NotificationError};
 use std::time::Duration;
 use ratatui::{
     Terminal,
@@ -62,6 +62,18 @@ impl App {
                 self.selected - 1
             };
         }
+    }
+
+    fn add_notification(&mut self, kind: Level, title: String, text: String) {
+        let notif = Notification::new(text)
+            .title(title)
+            .level(kind)
+            .anchor(Anchor::BottomRight)
+            .animation(Animation::Fade)
+            .max_size(SizeConstraint::Absolute(30),SizeConstraint::Absolute(1),)
+            .build().unwrap();
+
+        self.notifications.add(notif).unwrap();
     }
 }
 
@@ -141,7 +153,7 @@ fn main() -> io::Result<()> {
                 f.render_widget(preview, chunks[1]);
             }
 
-            if let Mode::EditNote(input) = &app.mode {
+            if let Mode::EditNote(_input) = &app.mode {
                 f.render_widget(&app.text_area, chunks[1]);
             }
             // --- Overlay: input de nueva nota ---
@@ -251,6 +263,7 @@ fn main() -> io::Result<()> {
                             app.notes = list_notes(Path::new("vault"))?; // recarga la lista
                             app.selected =
                                 app.notes.iter().position(|n| n == &filename).unwrap_or(0);
+                            app.add_notification(Level::Warn, "Exito".to_string(), "Archivo creado".to_string());
                             app.mode = Mode::Normal;
                         }
                         KeyCode::Char(c) => {
@@ -274,6 +287,7 @@ fn main() -> io::Result<()> {
                             } else if app.selected >= app.notes.len() {
                                 app.selected = app.notes.len() - 1;
                             }
+                            app.add_notification(Level::Error, "Exito".to_string(), "Archivo eliminado".to_string());
                             app.mode = Mode::Normal; // cancelar
                         }
                         _ => {}
@@ -286,19 +300,7 @@ fn main() -> io::Result<()> {
                             let text: String = app.text_area.lines().join("\n");
                             let path = Path::new("vault").join(note);
                             save_note(&path, &text)?;
-                            let notif = Notification::new("Operation completed!")
-                           .title("Success")
-                            .level(Level::Info)
-                            .anchor(Anchor::BottomRight)
-                            .animation(Animation::Fade)
-                            .max_size(
-    SizeConstraint::Absolute(30),
-    SizeConstraint::Absolute(1),
-)
-                            .build()
-                            .unwrap();
-
-                            app.notifications.add(notif).unwrap();
+                            app.add_notification(Level::Info, "Exito".to_string(), "Archivo guardado".to_string());
 
                             app.mode = Mode::Normal; // cancelar
                         },
@@ -351,3 +353,4 @@ fn save_note(file_path: &Path, text: &str) -> io::Result<()>{
     Ok(())
 
 }
+
