@@ -31,7 +31,7 @@ pub fn render_main_view(f: &mut Frame, app: &mut App) {
     let list = List::new(items)
         .block(
             Block::default()
-                .borders(Borders::ALL)
+                .borders(Borders::RIGHT)
                 .border_style(Style::new().yellow())
                 .title_bottom("Notas"),
         )

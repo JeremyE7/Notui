@@ -36,6 +36,9 @@ impl Editor {
             KeyCode::Char('j') => self.text_area.move_cursor(CursorMove::Down),
             KeyCode::Char('e') => self.text_area.move_cursor(CursorMove::WordEnd),
             KeyCode::Char('b') => self.text_area.move_cursor(CursorMove::WordBack),
+            KeyCode::Char('d') => {
+                self.text_area.cut();
+            }
             KeyCode::Char('y') => {
                 self.text_area.copy();
                 self.editor_mode = EditorMode::Normal;
