@@ -7,14 +7,19 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
 
-use crate::{app::App, mode::Mode, notes::read_note_content};
+use crate::{app::App, mode::AppMode, notes::read_note_content, ui::status_bar::render_status_bar};
 
-pub fn render_main_view(f: &mut Frame, app: &mut App, vault: &Path) {
+pub fn render_main_view(f: &mut Frame, app: &mut App) {
+    let vertical_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(f.area());
+
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(15), Constraint::Percentage(85)])
         .spacing(2)
-        .split(f.area());
+        .split(vertical_chunks[0]);
 
     // --- Panel izquierdo: la lista (esto ya lo tenías) ---
     let items: Vec<ListItem> = app
@@ -50,12 +55,14 @@ pub fn render_main_view(f: &mut Frame, app: &mut App, vault: &Path) {
         String::new()
     };
 
-    if let Mode::Normal = &app.mode {
+    if let AppMode::Normal = &app.mode {
         let preview = Paragraph::new(content).block(Block::default());
         f.render_widget(preview, chunks[1]);
     }
 
-    if let Mode::EditNote(_input) = &app.mode {
-        f.render_widget(&app.text_area, chunks[1]);
+    if let AppMode::EditNote(_input) = &app.mode {
+        f.render_widget(&app.editor.text_area, chunks[1]);
     }
+
+    render_status_bar(f, app, vertical_chunks[1]);
 }

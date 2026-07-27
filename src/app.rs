@@ -1,21 +1,21 @@
-use ratatui_textarea::TextArea;
-
-use crate::mode::Mode;
-use crate::notes::list_notes;
+use crate::editor::Editor;
+use crate::mode::AppMode;
+use crate::notes::{list_notes, save_note};
 
 use ratatui_notifications::{
     Anchor, Animation, Level, Notification, Notifications, SizeConstraint,
 };
-use std::io;
 use std::path::Path;
+
+use std::io;
 
 // --- Estado de la app ---
 pub struct App {
     pub notes: Vec<String>,
     pub selected: usize, // índice de la nota seleccionada
-    pub mode: Mode,      // nuevo campo
-    pub text_area: TextArea<'static>,
+    pub mode: AppMode,   // nuevo campo
     pub notifications: Notifications,
+    pub editor: Editor,
 }
 
 impl App {
@@ -24,9 +24,9 @@ impl App {
         Ok(App {
             notes,
             selected: 0,
-            mode: Mode::Normal,
-            text_area: TextArea::default(),
+            mode: AppMode::Normal,
             notifications: Notifications::new(),
+            editor: Editor::new(),
         })
     }
 
@@ -44,6 +44,17 @@ impl App {
                 self.selected - 1
             };
         }
+    }
+
+    pub fn save(&mut self, note: String) {
+        let text: String = self.editor.text_area.lines().join("\n");
+        let path = Path::new("vault").join(note);
+        let _ = save_note(&path, &text);
+        self.add_notification(
+            Level::Info,
+            "Exito".to_string(),
+            "Archivo guardado".to_string(),
+        );
     }
 
     pub fn add_notification(&mut self, kind: Level, title: String, text: String) {
