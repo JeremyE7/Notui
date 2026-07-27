@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui_notifications::Level;
 use ratatui_textarea::{CursorMove, TextArea};
 
 use crate::mode::EditorMode;
@@ -12,6 +13,7 @@ pub enum EditorAction {
     None,
     Save,
     Quit,
+    Notify(Level, String, String),
 }
 
 impl Editor {
@@ -34,8 +36,14 @@ impl Editor {
             KeyCode::Char('j') => self.text_area.move_cursor(CursorMove::Down),
             KeyCode::Char('e') => self.text_area.move_cursor(CursorMove::WordEnd),
             KeyCode::Char('b') => self.text_area.move_cursor(CursorMove::WordBack),
-            KeyCode::Char('y') => self.text_area.copy(),
-
+            KeyCode::Char('y') => {
+                self.text_area.copy();
+                self.editor_mode = EditorMode::Normal;
+                return EditorAction::Notify(Level::Info, "Info".into(), "Texto copiado".into());
+            }
+            KeyCode::Char('p') => {
+                self.text_area.paste();
+            }
             _ => {}
         }
         return EditorAction::None;
@@ -44,16 +52,20 @@ impl Editor {
         match key.code {
             KeyCode::Esc => {
                 self.editor_mode = EditorMode::Normal;
-                return EditorAction::None;
             }
             KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 return EditorAction::Save;
             }
+            KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.text_area.move_cursor(CursorMove::End);
+                self.text_area.insert_newline();
+                self.text_area.insert_str("[ ] ");
+            }
             _ => {
                 self.text_area.input(key);
-                return EditorAction::None;
             }
         }
+        return EditorAction::None;
     }
     pub fn handle_command_mode(&mut self, key: KeyEvent) -> EditorAction {
         match key.code {

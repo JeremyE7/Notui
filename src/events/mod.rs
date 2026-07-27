@@ -7,6 +7,7 @@ use crate::app::App;
 use crate::editor::EditorAction;
 use crate::mode::{AppMode, EditorMode};
 use crate::notes::{create_note, delete_note, list_notes, read_note_content};
+use crate::ui;
 use std::io;
 use std::path::Path;
 
@@ -24,6 +25,10 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                     let note_text = read_note_content(Path::new("vault"), &note.clone());
                     let lines: Vec<String> = note_text.split('\n').map(String::from).collect();
                     app.editor.text_area = TextArea::new(lines);
+                    app.editor.text_area.set_cursor_line_style(Style::default());
+
+                    app.editor.text_area.set_cursor_style(Style::default());
+
                     let style = Style::default().fg(Color::DarkGray);
                     app.editor.text_area.set_line_number_style(style);
 
@@ -100,8 +105,12 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                     let filename = note.clone();
                     app.save(filename);
                 }
+                EditorAction::Notify(kind, title, messagge) => {
+                    app.add_notification(kind, title, messagge);
+                }
             }
         }
     }
+    ui::update_cursor_style(app)?;
     return Ok(false);
 }

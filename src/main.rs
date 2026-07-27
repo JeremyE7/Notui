@@ -11,7 +11,7 @@ use std::io;
 use std::path::Path;
 
 use crossterm::{
-    event::{self, Event},
+    event::{self, Event, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -36,7 +36,7 @@ fn main() -> io::Result<()> {
 
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
-                if events::handle_key(&mut app, key)? {
+                if key.kind != KeyEventKind::Release && events::handle_key(&mut app, key)? {
                     break;
                 }
             }
