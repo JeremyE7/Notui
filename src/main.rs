@@ -1,6 +1,7 @@
 mod app;
 mod editor;
 mod events;
+mod helpers;
 mod mode;
 mod notes;
 mod ui;

@@ -2,46 +2,85 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-pub fn read_note_content(vault: &Path, filename: &str) -> String {
-    fs::read_to_string(vault.join(filename)).unwrap_or_else(|_| "(no se pudo leer)".to_string())
+use crate::helpers::slugify;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NoteState {
+    Saved,
+    New,
+    Edited,
+    Default,
 }
 
-pub fn create_note(vault: &Path, title: &str) -> io::Result<String> {
-    let filename = format!("{}.md", slugify(title));
-    let path = vault.join(&filename);
-    fs::write(&path, format!("# {}\n\n", title))?;
-    Ok(filename)
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Note {
+    pub name: String,
+    pub text: Vec<String>,
+    pub state: NoteState,
 }
 
-fn slugify(s: &str) -> String {
-    s.trim()
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect()
-}
-
-pub fn delete_note(file_path: &Path) -> Result<(), io::Error> {
-    fs::remove_file(&file_path)?;
-    Ok(())
-}
-
-pub fn save_note(file_path: &Path, text: &str) -> io::Result<()> {
-    fs::write(&file_path, text)?;
-    Ok(())
-}
-
-pub fn list_notes(vault: &Path) -> io::Result<Vec<String>> {
-    let mut notes = Vec::new();
-    for entry in fs::read_dir(vault)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("md") {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                notes.push(name.to_string());
-            }
+impl Note {
+    pub fn new(name: String) -> Self {
+        Note {
+            name,
+            text: Vec::new(),
+            state: NoteState::Default,
         }
     }
-    notes.sort();
-    Ok(notes)
+
+    pub fn load(&mut self, vault: &Path) -> io::Result<()> {
+        if !self.text.is_empty() {
+            return Ok(());
+        }
+        let content = fs::read_to_string(vault.join(&self.name))?;
+
+        self.text = content
+            .split('\n')
+            .map(|line| line.trim_end_matches('\r').to_string())
+            .collect();
+
+        self.state = NoteState::Saved;
+
+        Ok(())
+    }
+
+    pub fn save_on_memory(&mut self, text: Vec<String>) {
+        self.text = text;
+        self.mark_as_edited();
+    }
+
+    pub fn create(vault: &Path, title: &str) -> io::Result<Self> {
+        let filename = format!("{}.md", slugify(title));
+
+        let mut note = Self {
+            name: filename,
+            text: vec![format!("# {}", title), String::new(), String::new()],
+            state: NoteState::New,
+        };
+
+        note.save(vault)?;
+
+        Ok(note)
+    }
+
+    pub fn delete(&self, vault: &Path) -> io::Result<()> {
+        fs::remove_file(vault.join(&self.name))
+    }
+
+    pub fn mark_as_edited(&mut self) {
+        if self.state == NoteState::Saved {
+            self.state = NoteState::Edited;
+        }
+    }
+
+    pub fn save(&mut self, vault: &Path) -> io::Result<()> {
+        let path = vault.join(&self.name);
+        let content = self.text.join("\n");
+
+        fs::write(path, content)?;
+
+        self.state = NoteState::Saved;
+
+        Ok(())
+    }
 }

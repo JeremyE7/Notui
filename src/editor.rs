@@ -15,6 +15,7 @@ pub enum EditorAction {
     None,
     Save,
     Quit,
+    Leave,
     Notify(Level, String, String),
 }
 
@@ -26,17 +27,35 @@ impl Editor {
             key_buffer: Vec::new(),
         }
     }
-    fn insert_string(&mut self, str: &str) {
+    fn insert_check_task(&mut self, str: &str) {
         let cursor = self.text_area.cursor();
         let row = cursor.0;
+        if !self.check_if_row_is_task(row) {
+            return;
+        }
         let col = cursor.1;
-        let row = u16::try_from(row).unwrap_or(u16::MAX);
-        let col = u16::try_from(col).unwrap_or(u16::MAX);
+        let Ok(row) = u16::try_from(row) else {
+            return;
+        };
+
+        let Ok(col) = u16::try_from(col) else {
+            return;
+        };
         self.text_area.move_cursor(CursorMove::Jump(row, 1));
         self.text_area.delete_next_char();
         self.text_area.insert_str(str);
         self.text_area.move_cursor(CursorMove::Jump(row, col));
         return;
+    }
+
+    fn check_if_row_is_task(&self, row: usize) -> bool {
+        let Some(line) = self.text_area.lines().get(row) else {
+            return false;
+        };
+
+        ["[ ] ", "[x] ", "[*] ", "[-] "]
+            .iter()
+            .any(|prefix| line.starts_with(prefix))
     }
 
     pub fn handle_visual_mode(&mut self, key: KeyEvent) -> EditorAction {
@@ -58,6 +77,7 @@ impl Editor {
             KeyCode::Char('y') => {
                 self.text_area.copy();
                 self.editor_mode = EditorMode::Normal;
+                self.text_area.cancel_selection();
                 return EditorAction::Notify(Level::Info, "Info".into(), "Texto copiado".into());
             }
             KeyCode::Char('p') => {
@@ -71,6 +91,7 @@ impl Editor {
         match key.code {
             KeyCode::Esc => {
                 self.editor_mode = EditorMode::Normal;
+                return EditorAction::Leave;
             }
             KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 return EditorAction::Save;
@@ -81,13 +102,13 @@ impl Editor {
                 self.text_area.insert_str("[ ] ");
             }
             KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.insert_string("*");
+                self.insert_check_task("*");
             }
             KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.insert_string("x");
+                self.insert_check_task("x");
             }
             KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.insert_string("-");
+                self.insert_check_task("-");
             }
             _ => {
                 self.text_area.input(key);
@@ -119,13 +140,13 @@ impl Editor {
                 self.editor_mode = EditorMode::Visual
             }
             KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.insert_string("*");
+                self.insert_check_task("*");
             }
             KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.insert_string("x");
+                self.insert_check_task("x");
             }
             KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.insert_string(" ");
+                self.insert_check_task(" ");
             }
             KeyCode::Esc => {
                 return EditorAction::Quit;

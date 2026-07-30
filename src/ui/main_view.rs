@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
@@ -7,7 +5,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
 
-use crate::{app::App, mode::AppMode, notes::read_note_content, ui::status_bar::render_status_bar};
+use crate::{app::App, mode::AppMode, notes::NoteState, ui::status_bar::render_status_bar};
 
 pub fn render_main_view(f: &mut Frame, app: &mut App) {
     let vertical_chunks = Layout::default()
@@ -25,7 +23,15 @@ pub fn render_main_view(f: &mut Frame, app: &mut App) {
     let items: Vec<ListItem> = app
         .notes
         .iter()
-        .map(|n| ListItem::new(n.as_str()))
+        .map(|note| {
+            let marker = match note.state {
+                NoteState::Edited => " *",
+                NoteState::New => " +",
+                NoteState::Saved | NoteState::Default => "",
+            };
+
+            ListItem::new(format!("{}{}", note.name, marker))
+        })
         .collect();
 
     let list = List::new(items)
@@ -48,15 +54,8 @@ pub fn render_main_view(f: &mut Frame, app: &mut App) {
 
     f.render_stateful_widget(list, chunks[0], &mut state);
 
-    // --- Panel derecho: preview del contenido ---
-    let content = if let Some(note) = app.notes.get(app.selected) {
-        read_note_content(Path::new("vault"), note)
-    } else {
-        String::new()
-    };
-
     if let AppMode::Normal = &app.mode {
-        let preview = Paragraph::new(content).block(Block::default());
+        let preview = Paragraph::new(app.editor.text_area.lines()).block(Block::default());
         f.render_widget(preview, chunks[1]);
     }
 

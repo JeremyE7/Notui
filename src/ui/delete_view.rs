@@ -27,7 +27,7 @@ pub fn render_delete_note_view(f: &mut Frame, app: &mut App) {
             ])
             .split(popup_area)[1];
 
-        let text_to_display: String = format!("¿Eliminar {}?", note);
+        let text_to_display: String = format!("¿Eliminar {}?", note.name);
 
         let text = Paragraph::new(text_to_display).block(
             Block::default()

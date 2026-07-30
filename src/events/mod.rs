@@ -7,7 +7,7 @@ use ratatui_textarea::TextArea;
 use crate::app::App;
 use crate::editor::EditorAction;
 use crate::mode::{AppMode, EditorMode};
-use crate::notes::{create_note, delete_note, list_notes, read_note_content};
+use crate::notes::Note;
 use crate::ui;
 pub use pressed_key::PressedKey;
 use std::io;
@@ -24,10 +24,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                 app.mode = AppMode::NewNote(String::new()); // entra a modo creación
             }
             KeyCode::Char('e') => {
-                if let Some(note) = app.notes.get(app.selected) {
-                    let note_text = read_note_content(Path::new("vault"), &note.clone());
-                    let lines: Vec<String> = note_text.split('\n').map(String::from).collect();
-                    app.editor.text_area = TextArea::new(lines);
+                if let Some(mut note) = app.notes.get(app.selected).cloned() {
+                    note.load(Path::new("vault"))?;
+                    app.editor.text_area = TextArea::new(note.text.clone());
                     app.editor.text_area.set_cursor_line_style(Style::default());
 
                     app.editor.text_area.set_cursor_style(Style::default());
@@ -53,8 +52,8 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             }
             KeyCode::Enter => {
                 let title = input.clone();
-                let filename = create_note(Path::new("vault"), &title)?;
-                app.notes = list_notes(Path::new("vault"))?; // recarga la lista
+                let filename = Note::create(Path::new("vault"), &title)?;
+                app.notes = App::list_notes(Path::new("vault"))?; // recarga la lista
                 app.selected = app.notes.iter().position(|n| n == &filename).unwrap_or(0);
                 app.add_notification(
                     Level::Warn,
@@ -76,9 +75,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                 app.mode = AppMode::Normal; // cancelar
             }
             KeyCode::Char('d') => {
-                let path = Path::new("vault").join(note);
-                delete_note(&path)?;
-                app.notes = list_notes(Path::new("vault"))?;
+                let path = Path::new("vault");
+                note.delete(path)?;
+                app.notes = App::list_notes(Path::new("vault"))?;
                 if app.notes.len() == 0 {
                     app.selected = 0;
                 } else if app.selected >= app.notes.len() {
@@ -104,9 +103,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             match action {
                 EditorAction::Quit => app.mode = AppMode::Normal,
                 EditorAction::None => {}
+                EditorAction::Leave => {
+                    let text = app.editor.text_area.lines().to_vec();
+                    note.save_on_memory(text);
+                }
                 EditorAction::Save => {
-                    let filename = note.clone();
-                    app.save(filename);
+                    let path = Path::new("vault");
+                    note.save(path)?;
                 }
                 EditorAction::Notify(kind, title, messagge) => {
                     app.add_notification(kind, title, messagge);

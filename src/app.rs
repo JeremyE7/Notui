@@ -1,17 +1,17 @@
 use crate::editor::Editor;
-use crate::mode::{AppMode, EditorMode};
-use crate::notes::{list_notes, save_note};
+use crate::mode::AppMode;
+use crate::notes::Note;
 
 use ratatui_notifications::{
     Anchor, Animation, Level, Notification, Notifications, SizeConstraint,
 };
 use std::path::Path;
 
-use std::io;
+use std::{fs, io};
 
 // --- Estado de la app ---
 pub struct App {
-    pub notes: Vec<String>,
+    pub notes: Vec<Note>,
     pub selected: usize, // índice de la nota seleccionada
     pub mode: AppMode,   // nuevo campo
     pub notifications: Notifications,
@@ -20,7 +20,7 @@ pub struct App {
 
 impl App {
     pub fn new(vault: &Path) -> io::Result<Self> {
-        let notes = list_notes(vault)?;
+        let notes = App::list_notes(vault)?;
         Ok(App {
             notes,
             selected: 0,
@@ -36,6 +36,12 @@ impl App {
         }
     }
 
+    pub fn get_selected_note_mut(&mut self) -> &mut Note {
+        self.notes
+            .get_mut(self.selected)
+            .expect("La nota seleccionada debe existir")
+    }
+
     pub fn previous(&mut self) {
         if !self.notes.is_empty() {
             self.selected = if self.selected == 0 {
@@ -44,18 +50,6 @@ impl App {
                 self.selected - 1
             };
         }
-    }
-
-    pub fn save(&mut self, note: String) {
-        let text: String = self.editor.text_area.lines().join("\n");
-        let path = Path::new("vault").join(note);
-        let _ = save_note(&path, &text);
-        self.add_notification(
-            Level::Info,
-            "Exito".to_string(),
-            "Archivo guardado".to_string(),
-        );
-        self.editor.editor_mode = EditorMode::Normal
     }
 
     pub fn add_notification(&mut self, kind: Level, title: String, text: String) {
@@ -69,5 +63,21 @@ impl App {
             .unwrap();
 
         self.notifications.add(notif).unwrap();
+    }
+
+    pub fn list_notes(vault: &Path) -> io::Result<Vec<Note>> {
+        let mut notes = Vec::new();
+        for entry in fs::read_dir(vault)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    let note = Note::new(name.to_string());
+                    notes.push(note);
+                }
+            }
+        }
+        notes.sort();
+        Ok(notes)
     }
 }
