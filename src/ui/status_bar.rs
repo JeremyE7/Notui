@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::Rect,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     widgets::Paragraph,
 };
@@ -49,12 +49,31 @@ pub fn render_status_bar(f: &mut Frame, app: &mut App, area: Rect) {
         )
     };
 
-    let status_bar = Paragraph::new(status_text).style(
-        Style::default()
-            .bg(Color::Yellow)
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD),
-    );
+    let buffer_key = &app.editor.key_buffer.last();
+    let buffer_text = match buffer_key {
+        Some(key) => format!("{:?}", key.code),
+        None => String::new(),
+    };
 
-    f.render_widget(status_bar, area);
+    let status_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(0),     // Texto principal ocupa el espacio disponible
+            Constraint::Length(12), // Espacio reservado para la tecla
+        ])
+        .split(area);
+
+    let status_style = Style::default()
+        .bg(Color::Yellow)
+        .fg(Color::Black)
+        .add_modifier(Modifier::BOLD);
+
+    let status_bar = Paragraph::new(status_text).style(status_style);
+
+    let key_bar = Paragraph::new(buffer_text)
+        .style(status_style)
+        .alignment(Alignment::Right);
+
+    f.render_widget(status_bar, status_chunks[0]);
+    f.render_widget(key_bar, status_chunks[1]);
 }

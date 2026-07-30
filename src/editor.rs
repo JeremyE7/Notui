@@ -2,11 +2,13 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui_notifications::Level;
 use ratatui_textarea::{CursorMove, TextArea};
 
+use crate::events::PressedKey;
 use crate::mode::EditorMode;
 
 pub struct Editor {
     pub text_area: TextArea<'static>,
     pub editor_mode: EditorMode,
+    pub key_buffer: Vec<PressedKey>,
 }
 
 pub enum EditorAction {
@@ -21,6 +23,7 @@ impl Editor {
         Editor {
             text_area: TextArea::default(),
             editor_mode: EditorMode::Normal,
+            key_buffer: Vec::new(),
         }
     }
     pub fn handle_visual_mode(&mut self, key: KeyEvent) -> EditorAction {
@@ -91,6 +94,7 @@ impl Editor {
             }
             KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.text_area.select_all();
+                self.editor_mode = EditorMode::Visual
             }
 
             KeyCode::Esc => {

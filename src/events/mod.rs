@@ -1,3 +1,4 @@
+mod pressed_key;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::style::{Color, Style};
 use ratatui_notifications::Level;
@@ -8,10 +9,12 @@ use crate::editor::EditorAction;
 use crate::mode::{AppMode, EditorMode};
 use crate::notes::{create_note, delete_note, list_notes, read_note_content};
 use crate::ui;
+pub use pressed_key::PressedKey;
 use std::io;
 use std::path::Path;
 
 pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
+    app.editor.key_buffer.push(key.into());
     match &mut app.mode {
         AppMode::Normal => match key.code {
             KeyCode::Char('q') => return Ok(true),

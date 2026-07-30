@@ -1,5 +1,5 @@
 use crate::editor::Editor;
-use crate::mode::AppMode;
+use crate::mode::{AppMode, EditorMode};
 use crate::notes::{list_notes, save_note};
 
 use ratatui_notifications::{
@@ -55,6 +55,7 @@ impl App {
             "Exito".to_string(),
             "Archivo guardado".to_string(),
         );
+        self.editor.editor_mode = EditorMode::Normal
     }
 
     pub fn add_notification(&mut self, kind: Level, title: String, text: String) {
