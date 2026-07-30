@@ -26,6 +26,19 @@ impl Editor {
             key_buffer: Vec::new(),
         }
     }
+    fn insert_string(&mut self, str: &str) {
+        let cursor = self.text_area.cursor();
+        let row = cursor.0;
+        let col = cursor.1;
+        let row = u16::try_from(row).unwrap_or(u16::MAX);
+        let col = u16::try_from(col).unwrap_or(u16::MAX);
+        self.text_area.move_cursor(CursorMove::Jump(row, 1));
+        self.text_area.delete_next_char();
+        self.text_area.insert_str(str);
+        self.text_area.move_cursor(CursorMove::Jump(row, col));
+        return;
+    }
+
     pub fn handle_visual_mode(&mut self, key: KeyEvent) -> EditorAction {
         match key.code {
             KeyCode::Esc => {
@@ -67,6 +80,15 @@ impl Editor {
                 self.text_area.insert_newline();
                 self.text_area.insert_str("[ ] ");
             }
+            KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.insert_string("*");
+            }
+            KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.insert_string("x");
+            }
+            KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.insert_string("-");
+            }
             _ => {
                 self.text_area.input(key);
             }
@@ -96,7 +118,15 @@ impl Editor {
                 self.text_area.select_all();
                 self.editor_mode = EditorMode::Visual
             }
-
+            KeyCode::Char('1') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.insert_string("*");
+            }
+            KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.insert_string("x");
+            }
+            KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.insert_string(" ");
+            }
             KeyCode::Esc => {
                 return EditorAction::Quit;
             }
