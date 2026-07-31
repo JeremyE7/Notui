@@ -32,6 +32,7 @@ impl Note {
         if !self.text.is_empty() {
             return Ok(());
         }
+
         let content = fs::read_to_string(vault.join(&self.name))?;
 
         self.text = content

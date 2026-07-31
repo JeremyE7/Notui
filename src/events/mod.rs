@@ -7,7 +7,7 @@ use ratatui_textarea::TextArea;
 use crate::app::App;
 use crate::editor::EditorAction;
 use crate::mode::{AppMode, EditorMode};
-use crate::notes::Note;
+use crate::notes::{Note, NoteState};
 use crate::ui;
 pub use pressed_key::PressedKey;
 use std::io;
@@ -17,14 +17,24 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
     app.editor.key_buffer.push(key.into());
     match &mut app.mode {
         AppMode::Normal => match key.code {
-            KeyCode::Char('q') => return Ok(true),
+            KeyCode::Char('q') | KeyCode::Esc => {
+                if let Some(index) = app
+                    .notes
+                    .iter()
+                    .position(|note| note.state == NoteState::Edited)
+                {
+                    app.mode = AppMode::Confirm(index);
+                } else {
+                    return Ok(true);
+                }
+            }
             KeyCode::Char('j') | KeyCode::Down => app.next(),
             KeyCode::Char('k') | KeyCode::Up => app.previous(),
             KeyCode::Char('n') => {
                 app.mode = AppMode::NewNote(String::new()); // entra a modo creación
             }
             KeyCode::Char('e') => {
-                if let Some(mut note) = app.notes.get(app.selected).cloned() {
+                if let Some(note) = app.notes.get_mut(app.selected) {
                     note.load(Path::new("vault"))?;
                     app.editor.text_area = TextArea::new(note.text.clone());
                     app.editor.text_area.set_cursor_line_style(Style::default());
@@ -34,15 +44,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                     let style = Style::default().fg(Color::DarkGray);
                     app.editor.text_area.set_line_number_style(style);
 
-                    app.mode = AppMode::EditNote(note.clone());
+                    app.mode = AppMode::EditNote(app.selected);
                     app.editor.editor_mode = EditorMode::Normal;
                 }
             }
 
             KeyCode::Char('d') => {
-                if let Some(note) = app.notes.get(app.selected) {
-                    app.mode = AppMode::DeleteNote(note.clone());
-                }
+                app.mode = AppMode::DeleteNote(app.selected);
             }
             _ => {}
         },
@@ -70,13 +78,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             }
             _ => {}
         },
-        AppMode::DeleteNote(note) => match key.code {
+        AppMode::DeleteNote(index) => match key.code {
             KeyCode::Esc => {
                 app.mode = AppMode::Normal; // cancelar
             }
             KeyCode::Char('d') => {
+                let index = *index;
                 let path = Path::new("vault");
-                note.delete(path)?;
+
+                if let Some(note) = app.notes.get(index) {
+                    note.delete(path)?;
+                }
+
                 app.notes = App::list_notes(Path::new("vault"))?;
                 if app.notes.len() == 0 {
                     app.selected = 0;
@@ -92,7 +105,9 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
             }
             _ => {}
         },
-        AppMode::EditNote(note) => {
+        AppMode::EditNote(index) => {
+            let index = *index;
+
             let action = match app.editor.editor_mode {
                 EditorMode::Visual => app.editor.handle_visual_mode(key),
                 EditorMode::Insert => app.editor.handle_insert_mode(key),
@@ -105,17 +120,31 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> io::Result<bool> {
                 EditorAction::None => {}
                 EditorAction::Leave => {
                     let text = app.editor.text_area.lines().to_vec();
-                    note.save_on_memory(text);
+                    if let Some(note) = app.notes.get_mut(index) {
+                        note.save_on_memory(text);
+                    }
                 }
                 EditorAction::Save => {
                     let path = Path::new("vault");
-                    note.save(path)?;
+                    if let Some(note) = app.notes.get_mut(index) {
+                        note.save(path)?;
+                    }
                 }
                 EditorAction::Notify(kind, title, messagge) => {
                     app.add_notification(kind, title, messagge);
                 }
             }
         }
+        AppMode::Confirm(_) => match key.code {
+            KeyCode::Esc => {
+                app.mode = AppMode::Normal; // cancelar
+            }
+            KeyCode::Char('q') => {
+                app.mode = AppMode::Normal; // cancelar
+                return Ok(true);
+            }
+            _ => {}
+        },
     }
     ui::update_cursor_style(app)?;
     return Ok(false);

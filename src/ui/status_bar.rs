@@ -16,6 +16,7 @@ pub fn render_status_bar(f: &mut Frame, app: &mut App, area: Rect) {
         AppMode::Normal => "NORMAL",
         AppMode::EditNote(_) => "EDIT",
         AppMode::DeleteNote(_) => "DELETE",
+        AppMode::Confirm(_) => "CONFIRM",
         AppMode::NewNote(_) => "NEW",
     };
 

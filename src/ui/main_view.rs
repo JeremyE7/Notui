@@ -30,7 +30,7 @@ pub fn render_main_view(f: &mut Frame, app: &mut App) {
                 NoteState::Saved | NoteState::Default => "",
             };
 
-            ListItem::new(format!("{}{}", note.name, marker))
+            ListItem::new(format!("{}{}", marker, note.name))
         })
         .collect();
 

@@ -1,3 +1,4 @@
+mod confirm_view;
 mod delete_view;
 mod helpers;
 mod main_view;
@@ -14,5 +15,6 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     // --- Overlay: input de nueva nota ---
     new_view::render_new_note_view(f, app);
     delete_view::render_delete_note_view(f, app);
+    confirm_view::render_confirm_view(f, app);
     app.notifications.render(f, f.area());
 }

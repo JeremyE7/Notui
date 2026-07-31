@@ -1,10 +1,9 @@
-use crate::notes::Note;
-
 pub enum AppMode {
-    Normal,           // navegando la lista (como ahora)
-    NewNote(String),  // escribiendo el título de una nota nueva
-    DeleteNote(Note), // borrando una nota
-    EditNote(Note),
+    Normal,            // navegando la lista (como ahora)
+    NewNote(String),   // escribiendo el título de una nota nueva
+    DeleteNote(usize), // borrando una nota
+    EditNote(usize),
+    Confirm(usize),
 }
 
 pub enum EditorMode {

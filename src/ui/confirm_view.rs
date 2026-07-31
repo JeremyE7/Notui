@@ -1,3 +1,5 @@
+use std::usize;
+
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
@@ -7,8 +9,8 @@ use ratatui::{
 
 use crate::{app::App, mode::AppMode};
 
-pub fn render_delete_note_view(f: &mut Frame, app: &mut App) {
-    if let AppMode::DeleteNote(index) = &app.mode {
+pub fn render_confirm_view(f: &mut Frame, app: &mut App) {
+    if let AppMode::Confirm(index) = &app.mode {
         let index = *index;
         let popup_area = Layout::default()
             .direction(Direction::Vertical)
@@ -29,14 +31,17 @@ pub fn render_delete_note_view(f: &mut Frame, app: &mut App) {
             .split(popup_area)[1];
         let mut text_to_display = String::new();
         if let Some(note) = app.notes.get(index) {
-            text_to_display = format!("¿Eliminar {}?", note.name);
+            text_to_display = format!(
+                "Las siguiente nota tienen cambios sin guardar: {}. \n ¿Desea salir?",
+                note.name
+            );
         }
 
         let text = Paragraph::new(text_to_display).block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Color::LightYellow)
-                .title("(d=eliminar, Esc=cancelar)"),
+                .title("(d=Cancelar, Esc/q=Salir)"),
         );
 
         f.render_widget(ratatui::widgets::Clear, popup_area); // limpia el fondo antes de dibujar encima
